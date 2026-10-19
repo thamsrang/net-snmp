@@ -1,0 +1,11 @@
+[Unit]
+Description=Net-SNMP agent (snmpd)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/snmpd -f -Lo
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

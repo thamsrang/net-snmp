@@ -1,0 +1,48 @@
+Net-SNMP Linux package (x86_64)
+===============================
+
+Contents
+--------
+usr/local/       binaries (bin, sbin), libraries, headers, MIBs
+install.sh       installer script
+snmpd.conf       sample agent configuration
+snmpd.service    systemd unit for snmpd
+
+Requirements
+------------
+64-bit Linux with glibc and the OpenSSL runtime library:
+  Debian/Ubuntu:  apt install libssl3
+  RHEL/Fedora:    dnf install openssl-libs
+
+Install
+-------
+  tar -xzf net-snmp-<version>-linux-x86_64.tar.gz
+  cd net-snmp-<version>-linux-x86_64
+  sudo ./install.sh              # copy to /usr/local and run ldconfig
+  sudo ./install.sh --systemd    # same, plus install and start the snmpd service
+
+install.sh copies sample snmpd.conf to /usr/local/etc/snmp/ only if no
+snmpd.conf exists there. The default sample allows read-only access from
+localhost with community "public"; edit it before exposing the agent.
+
+Verify
+------
+  /usr/local/bin/snmpget -v2c -c public localhost sysDescr.0
+
+If snmpd was not installed as a service, run it in the foreground with:
+  sudo /usr/local/sbin/snmpd -f -Lo
+
+Manual install without the script
+---------------------------------
+  sudo cp -a usr/local/. /usr/local/ && sudo ldconfig
+
+Uninstall
+---------
+  sudo systemctl disable --now snmpd; sudo rm /etc/systemd/system/snmpd.service
+  Remove the files listed by: tar -tzf net-snmp-<version>-linux-x86_64.tar.gz
+  (paths under usr/local/), and /usr/local/etc/snmp if no longer needed.
+
+Building the package
+--------------------
+On Linux or WSL (needs gcc, make, libssl-dev):
+  bash installer/build-linux.sh

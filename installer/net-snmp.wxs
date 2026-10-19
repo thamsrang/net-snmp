@@ -1,0 +1,58 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Net-SNMP" Manufacturer="Net-SNMP" Version="$(Version)"
+           UpgradeCode="6B1F6C3E-3D0A-4E5B-9B53-2F4E7C1A8D90" Scope="perMachine" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Net-SNMP is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Opt in with: msiexec /i ... REGISTER_SERVICE=1 -->
+    <Property Id="REGISTER_SERVICE" Secure="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Net-SNMP">
+        <Directory Id="ETCDIR" Name="etc">
+          <Directory Id="SNMPCONFDIR" Name="snmp" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="Payload" Directory="INSTALLFOLDER">
+      <Files Include="$(PayloadDir)\**" />
+    </ComponentGroup>
+
+    <!-- The executables are built for a POSIX-style prefix, so point them at the install dir. -->
+    <Component Id="Environment" Directory="INSTALLFOLDER">
+      <RegistryValue Root="HKLM" Key="Software\Net-SNMP" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      <Environment Id="PathEnv" Name="PATH" Value="[INSTALLFOLDER]bin;[INSTALLFOLDER]sbin" Action="set" Part="last" System="yes" />
+      <Environment Id="MibDirsEnv" Name="MIBDIRS" Value="[INSTALLFOLDER]share\snmp\mibs" Action="set" System="yes" />
+      <Environment Id="SnmpConfPathEnv" Name="SNMPCONFPATH" Value="[SNMPCONFDIR]" Action="set" System="yes" />
+      <!-- Release the files before an upgrade or removal if the services were registered. -->
+      <ServiceControl Id="StopAgent" Name="Net-SNMP Agent" Stop="both" Remove="none" Wait="yes" />
+      <ServiceControl Id="StopTrapHandler" Name="Net-SNMP Trap Handler" Stop="both" Remove="none" Wait="yes" />
+    </Component>
+
+    <Component Id="ConfDir" Directory="SNMPCONFDIR">
+      <RegistryValue Root="HKLM" Key="Software\Net-SNMP" Name="ConfDir" Type="string" Value="[SNMPCONFDIR]" KeyPath="yes" />
+      <CreateFolder />
+    </Component>
+
+    <Feature Id="Main" Title="Net-SNMP" Level="1">
+      <ComponentGroupRef Id="Payload" />
+      <ComponentRef Id="Environment" />
+      <ComponentRef Id="ConfDir" />
+    </Feature>
+
+    <!-- snmpd registers itself as a service with -register; Return=ignore so an existing service never blocks the install. -->
+    <CustomAction Id="RegisterSnmpd" Directory="INSTALLFOLDER" ExeCommand='"[INSTALLFOLDER]sbin\snmpd.exe" -register -quiet'
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <CustomAction Id="UnregisterSnmpd" Directory="INSTALLFOLDER" ExeCommand='"[INSTALLFOLDER]sbin\snmpd.exe" -unregister -quiet'
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <CustomAction Id="UnregisterSnmptrapd" Directory="INSTALLFOLDER" ExeCommand='"[INSTALLFOLDER]sbin\snmptrapd.exe" -unregister -quiet'
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="RegisterSnmpd" After="InstallFiles" Condition='REGISTER_SERVICE="1" AND NOT Installed' />
+      <Custom Action="UnregisterSnmpd" Before="RemoveFiles" Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE' />
+      <Custom Action="UnregisterSnmptrapd" Before="RemoveFiles" Condition='REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE' />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>
